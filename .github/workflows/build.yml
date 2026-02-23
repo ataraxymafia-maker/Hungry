@@ -20,9 +20,16 @@ jobs:
           pip install --upgrade pip
           pip install cython buildozer
 
+      - name: Accept Android SDK licenses
+        run: |
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+          # Указываем путь, куда buildozer установит SDK
+          export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
+          # Принимаем все лицензии автоматически
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses || true
+
       - name: Build with Buildozer
-        env:
-          BUILDOZER_ACCEPT_ANDROID_LICENSES: 1   # 👈 эта строка решает проблему
         run: |
           buildozer android debug
 
