@@ -4,35 +4,14 @@ on: [push, pull_request]
 
 jobs:
   build-android:
-    name: Build for Android
     runs-on: ubuntu-latest
-
+    container:
+      image: kivy/buildozer:latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install cython buildozer
-
-      - name: Accept Android SDK licenses
-        run: |
-          mkdir -p ~/.android
-          touch ~/.android/repositories.cfg
-          # Указываем путь, куда buildozer установит SDK
-          export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
-          # Принимаем все лицензии автоматически
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses || true
-
       - name: Build with Buildozer
         run: |
           buildozer android debug
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
