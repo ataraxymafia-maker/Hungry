@@ -7,7 +7,7 @@ jobs:
     name: Build for Android
     runs-on: ubuntu-latest
 
-   steps:
+    steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
