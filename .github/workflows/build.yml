@@ -10,13 +10,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build with Buildozer
-        uses: mflorence99/buildozer-action@v1
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          workdir: .
-          buildozer_version: stable
+          python-version: '3.11'
 
-      - name: Upload artifacts (APK file)
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install cython buildozer
+
+      - name: Build with Buildozer
+        run: |
+          buildozer android debug
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-package
