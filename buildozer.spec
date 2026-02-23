@@ -1,5 +1,5 @@
 [app]
-title = Высоты
+title = Visoty
 package.name = vysoty
 package.domain = org.ataraxymafia
 
