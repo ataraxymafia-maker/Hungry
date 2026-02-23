@@ -9,9 +9,9 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.core.window import Window
 from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.metrics import dp
+from kivy.metrics import dp, sp
 
-# Константы
+# Константы (без изменений)
 FEET_IN_METER = 3.28084
 L0 = 0.0065
 QNE_HPA = 1013.25
@@ -19,7 +19,6 @@ QNE_MMHG = 760
 STEP_HPA = 8.3
 STEP_MMHG = 11
 
-# Все функции расчёта (те же, без изменений)
 def round_up_50_meters(value):
     return math.ceil(value / 50) * 50
 
@@ -122,29 +121,38 @@ class CalcScreen(Screen):
         main_layout = BoxLayout(orientation='vertical', padding=dp(8), spacing=dp(8))
 
         # Заголовок
-        main_layout.add_widget(Label(text=calc_name, size_hint_y=0.1, bold=True))
+        main_layout.add_widget(Label(text=calc_name, size_hint_y=0.1, bold=True, font_size=sp(14)))
 
-        # Формула (прокручиваемый текст)
-        formula_label = Label(text=formula_text, size_hint_y=0.2, halign='left', valign='top')
-        formula_label.bind(size=lambda s, w: s.setter('text_size')(s, (w, None)))
-        scroll = ScrollView(size_hint_y=0.2)
+        # Формула – уменьшил шрифт и добавил прокрутку
+        formula_container = BoxLayout(size_hint_y=0.25)
+        formula_label = Label(
+            text=formula_text,
+            font_size=sp(12),
+            halign='left',
+            valign='top',
+            text_size=(Window.width - dp(30), None),
+            size_hint_y=None
+        )
+        formula_label.bind(texture_size=lambda instance, size: setattr(instance, 'height', size[1]))
+        scroll = ScrollView(do_scroll_x=False, do_scroll_y=True)
         scroll.add_widget(formula_label)
-        main_layout.add_widget(scroll)
+        formula_container.add_widget(scroll)
+        main_layout.add_widget(formula_container)
 
         # Поля ввода
         grid = GridLayout(cols=2, size_hint_y=None, spacing=dp(5), padding=dp(5))
         grid.bind(minimum_height=grid.setter('height'))
         for field in fields:
-            grid.add_widget(Label(text=field['label'], halign='right', size_hint_x=0.4))
-            ti = TextInput(text=field.get('default', ''), multiline=False, input_filter='float', size_hint_x=0.6)
+            grid.add_widget(Label(text=field['label'], halign='right', size_hint_x=0.4, font_size=sp(12)))
+            ti = TextInput(text=field.get('default', ''), multiline=False, input_filter='float', size_hint_x=0.6, font_size=sp(12))
             self.inputs[field['name']] = ti
             grid.add_widget(ti)
         main_layout.add_widget(grid)
 
         # Кнопки
         btn_layout = BoxLayout(size_hint_y=0.1, spacing=dp(10))
-        btn_calc = Button(text='Рассчитать')
-        btn_back = Button(text='Назад')
+        btn_calc = Button(text='Рассчитать', font_size=sp(12))
+        btn_back = Button(text='Назад', font_size=sp(12))
         btn_layout.add_widget(btn_calc)
         btn_layout.add_widget(btn_back)
         main_layout.add_widget(btn_layout)
@@ -171,11 +179,11 @@ class CalcScreen(Screen):
             self.show_result(msg)
 
     def show_error(self, title, msg):
-        popup = Popup(title=title, content=Label(text=msg), size_hint=(0.8, 0.3))
+        popup = Popup(title=title, content=Label(text=msg, font_size=sp(12)), size_hint=(0.8, 0.3))
         popup.open()
 
     def show_result(self, msg):
-        popup = Popup(title='Результат', content=Label(text=msg), size_hint=(0.8, 0.5))
+        popup = Popup(title='Результат', content=Label(text=msg, font_size=sp(12)), size_hint=(0.8, 0.5))
         popup.open()
 
     def go_back(self, instance):
@@ -187,89 +195,87 @@ class MenuScreen(Screen):
         super().__init__(**kwargs)
         layout = BoxLayout(orientation='vertical', padding=dp(8), spacing=dp(5))
 
-        layout.add_widget(Label(text='Выберите тип расчёта:', size_hint_y=0.1, bold=True))
+        layout.add_widget(Label(text='Выберите тип расчёта:', size_hint_y=0.1, bold=True, font_size=sp(14)))
 
-        # Список расчётов: (название, имя экрана, формула, поля, функция)
         self.calc_list = [
             {
-                'name': 'Относительная МБВ круга полётов (QFE) – п.1',
+                'name': '1. Относительная МБВ круга QFE (п.1)',
                 'screen_name': 'calc1',
                 'formula': "H_МБВкQFE = ΔH_преп + МЗВ + ΔH_t\n"
-                           "где ΔH_t = H*(15-t0)/(273+t0-0.5*L0*(H+H_азр))\n"
+                           "ΔH_t = H*(15-t0)/(273+t0-0.5*L0*(H+H_азр))\n"
                            "H = ΔH_преп + МЗВ, t0 = t_азр + L0*H_азр",
                 'fields': [
                     {'label': 'ΔH_преп (м)', 'name': 'dH_prep'},
-                    {'label': 'Тип полёта (1-ПВП, 2-ППП)', 'name': 'flight_type', 'default': '1'},
+                    {'label': 'Тип (1-ПВП,2-ППП)', 'name': 'flight_type', 'default': '1'},
                     {'label': 't_азр (°C)', 'name': 't_azr'},
                     {'label': 'H_азр (м)', 'name': 'H_azr'},
                 ],
                 'func': lambda dH_prep, flight_type, t_azr, H_azr: calc_H_MBVk_QFE(dH_prep, str(int(flight_type)), t_azr, H_azr)
             },
             {
-                'name': 'Абсолютная МБВ круга полётов (QNH) – п.2',
+                'name': '2. Абсолютная МБВ круга QNH (п.2)',
                 'screen_name': 'calc2',
                 'formula': "H_МБВкQNH = H_преп + МЗВ + ΔH_t\n"
                            "ΔH_t – по той же формуле, что в п.1",
                 'fields': [
                     {'label': 'H_преп (м)', 'name': 'H_prep'},
-                    {'label': 'Тип полёта (1-ПВП, 2-ППП)', 'name': 'flight_type', 'default': '1'},
+                    {'label': 'Тип (1-ПВП,2-ППП)', 'name': 'flight_type', 'default': '1'},
                     {'label': 't_азр (°C)', 'name': 't_azr'},
                     {'label': 'H_азр (м)', 'name': 'H_azr'},
                 ],
                 'func': lambda H_prep, flight_type, t_azr, H_azr: calc_H_MBVk_QNH(H_prep, str(int(flight_type)), t_azr, H_azr)
             },
             {
-                'name': 'Относительная МБВ в районе аэродрома (QFE) – п.3',
+                'name': '3. Относительная МБВ район QFE (п.3)',
                 'screen_name': 'calc3',
                 'formula': "H_МБВраQFE = ΔH_преп + МЗВ + ΔH_t\n"
-                           "МЗВ: равнина/холмы – 300 м, горы – 600 м",
+                           "МЗВ: равнина/холмы – 300, горы – 600",
                 'fields': [
-                    {'label': 'ΔH_преп (м) 46км+9км', 'name': 'dH_prep'},
-                    {'label': 'Местность (1-равнина, 2-горы)', 'name': 'terrain', 'default': '1'},
+                    {'label': 'ΔH_преп (46км+9км)', 'name': 'dH_prep'},
+                    {'label': 'Местность (1-равн,2-горы)', 'name': 'terrain', 'default': '1'},
                     {'label': 't_азр (°C)', 'name': 't_azr'},
                     {'label': 'H_азр (м)', 'name': 'H_azr'},
                 ],
                 'func': lambda dH_prep, terrain, t_azr, H_azr: calc_H_MBVra_QFE(dH_prep, str(int(terrain)), t_azr, H_azr)
             },
             {
-                'name': 'Абсолютная МБВ в районе аэродрома (QNH) – п.4',
+                'name': '4. Абсолютная МБВ район QNH (п.4)',
                 'screen_name': 'calc4',
                 'formula': "H_МБВраQNH = H_преп + МЗВ + ΔH_t",
                 'fields': [
-                    {'label': 'H_преп (м) 46км+9км', 'name': 'H_prep'},
-                    {'label': 'Местность (1-равнина, 2-горы)', 'name': 'terrain', 'default': '1'},
+                    {'label': 'H_преп (46км+9км)', 'name': 'H_prep'},
+                    {'label': 'Местность (1-равн,2-горы)', 'name': 'terrain', 'default': '1'},
                     {'label': 't_азр (°C)', 'name': 't_azr'},
                     {'label': 'H_азр (м)', 'name': 'H_azr'},
                 ],
                 'func': lambda H_prep, terrain, t_azr, H_azr: calc_H_MBVra_QNH(H_prep, str(int(terrain)), t_azr, H_azr)
             },
             {
-                'name': 'Абсолютная безопасная высота ниже нижнего эшелона – п.6',
+                'name': '5. Абс. безопасная ниже нижнего эшелона (п.6)',
                 'screen_name': 'calc6',
                 'formula': "H_БНQNH = (H_преп + МЗВ) × 285/(273 + t_3)",
                 'fields': [
                     {'label': 'H_преп (м)', 'name': 'H_prep'},
-                    {'label': 'Местность (1-равнина, 2-горы)', 'name': 'terrain', 'default': '1'},
+                    {'label': 'Местность (1-равн,2-горы)', 'name': 'terrain', 'default': '1'},
                     {'label': 't3 (°C)', 'name': 't3'},
                 ],
                 'func': lambda H_prep, terrain, t3: calc_H_BN_QNH(H_prep, str(int(terrain)), t3)
             },
             {
-                'name': 'Нижний безопасный эшелон (QNE) – п.7',
+                'name': '6. Нижний безопасный эшелон (п.7)',
                 'screen_name': 'calc7',
                 'formula': "H_НЭQNE = (H_преп + 600 + ΔH_бар) × 285/(273 + t3)\n"
-                           "ΔH_бар = (QNE - QNH_района) × Δh\n"
-                           "Δh = 8.3 м/гПа или 11 м/мм рт.ст.",
+                           "ΔH_бар = (QNE - QNH_района) × Δh",
                 'fields': [
                     {'label': 'H_преп (м)', 'name': 'H_prep'},
-                    {'label': 'Ед.давл (1-гПа, 2-мм рт.ст.)', 'name': 'units', 'default': '1'},
+                    {'label': 'Ед.давл (1-гПа,2-мм рт.ст.)', 'name': 'units', 'default': '1'},
                     {'label': 'QNH района', 'name': 'qnh'},
                     {'label': 't3 (°C)', 'name': 't3'},
                 ],
                 'func': lambda H_prep, units, qnh, t3: calc_H_NE_QNE(H_prep, str(int(units)), qnh, t3)
             },
             {
-                'name': 'Абсолютная высота перехода района ЕС ОрВД – п.9',
+                'name': '7. Абс. высота перехода ЕС ОрВД (п.9)',
                 'screen_name': 'calc9',
                 'formula': "H_перехЕС = (H_преп + 600) × 285/(273 + t3)",
                 'fields': [
@@ -279,17 +285,18 @@ class MenuScreen(Screen):
                 'func': lambda H_prep, t3: calc_H_perekh_ES(H_prep, t3)
             },
             {
-                'name': 'Минимальная абсолютная высота в зоне (grid MORA) – п.11',
+                'name': '8. Мин. абс. высота в зоне (grid MORA) (п.11)',
                 'screen_name': 'calc11',
-                'formula': "H_Змин = H_рел + МЗВ",
+                'formula': "H_Змин = H_рел + МЗВ\n"
+                           "МЗВ: равнина – 300, горы – 600",
                 'fields': [
                     {'label': 'H_рел (м)', 'name': 'H_rel'},
-                    {'label': 'Местность (1-равнина, 2-горы)', 'name': 'terrain', 'default': '1'},
+                    {'label': 'Местность (1-равн,2-горы)', 'name': 'terrain', 'default': '1'},
                 ],
                 'func': lambda H_rel, terrain: calc_H_Zmin(H_rel, str(int(terrain)))
             },
             {
-                'name': 'Высота эшелона перехода в районе аэродрома – п.8',
+                'name': '9. Высота эшелона перехода аэродром (п.8)',
                 'screen_name': 'calc8',
                 'formula': "H_эперехQNH = H_перехQNH + 300",
                 'fields': [
@@ -298,7 +305,7 @@ class MenuScreen(Screen):
                 'func': lambda H_perekh: calc_H_eperekh_airport(H_perekh)
             },
             {
-                'name': 'Высота эшелона перехода в районе ЕС ОрВД – п.10',
+                'name': '10. Высота эшелона перехода ЕС ОрВД (п.10)',
                 'screen_name': 'calc10',
                 'formula': "H_эперехЕС = H_перехЕС + 300",
                 'fields': [
@@ -308,15 +315,13 @@ class MenuScreen(Screen):
             },
         ]
 
-        # Создаем кнопки меню
         for calc in self.calc_list:
-            btn = Button(text=calc['name'], size_hint_y=None, height=dp(50))
+            btn = Button(text=calc['name'], size_hint_y=None, height=dp(50), font_size=sp(12))
             btn.calc_info = calc
             btn.bind(on_press=self.open_calc)
             layout.add_widget(btn)
 
-        # Кнопка выхода (закрыть приложение)
-        btn_exit = Button(text='Выход', size_hint_y=None, height=dp(50))
+        btn_exit = Button(text='Выход', size_hint_y=None, height=dp(50), font_size=sp(12))
         btn_exit.bind(on_press=lambda x: App.get_running_app().stop())
         layout.add_widget(btn_exit)
 
@@ -326,7 +331,6 @@ class MenuScreen(Screen):
 
     def open_calc(self, instance):
         info = instance.calc_info
-        # Создаём экран с калькулятором, если ещё не создан
         if not self.manager.has_screen(info['screen_name']):
             screen = CalcScreen(
                 name=info['screen_name'],
