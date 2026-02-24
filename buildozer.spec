@@ -1,6 +1,6 @@
 [app]
-title = Visoty
-package.name = vysoty
+title = projekt1
+package.name = projekt1
 package.domain = org.ataraxymafia
 
 source.dir = .
