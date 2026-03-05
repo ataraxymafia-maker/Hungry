@@ -25,7 +25,6 @@ def linear_interpolate(x, x0, x1, y0, y1):
     return y0 + (x - x0) * (y1 - y0) / (x1 - x0)
 
 def bilinear_interpolate(x, y, x_vals, y_vals, grid):
-    # Находим индексы для x
     if x <= x_vals[0]:
         i1 = i2 = 0
     elif x >= x_vals[-1]:
@@ -35,7 +34,6 @@ def bilinear_interpolate(x, y, x_vals, y_vals, grid):
             if x_vals[i] <= x <= x_vals[i + 1]:
                 i1, i2 = i, i + 1
                 break
-    # Для y
     if y <= y_vals[0]:
         j1 = j2 = 0
     elif y >= y_vals[-1]:
@@ -572,74 +570,51 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
         return 1.0
 
 def calculate_takeoff(mass, temp, alt, wind, slope, v1, calc_type):
-    details = f"Исходные данные:\n  Масса: {mass} т\n  Температура: {temp} °C\n  Высота аэродрома: {alt} м\n"
-    details += f"  Ветер: {wind} м/с\n  Уклон: {slope} %\n"
-    if calc_type == 'abort':
-        details += f"  V1/Vn.on: {v1}\n"
-
     # выбор таблицы
     if calc_type == 'norm':
         base = get_base_length(mass, temp, alt, norm_tables, temp_vals_norm_cont)
-        details += f"Базовая длина разбега (табл.6.23): {base:.1f} м\n"
     elif calc_type == 'cont':
         base = get_base_length(mass, temp, alt, cont_tables, temp_vals_norm_cont)
-        details += f"Базовая дистанция продолженного взлёта (табл.6.24): {base:.1f} м\n"
     else:
         base = get_base_length(mass, temp, alt, abort_tables, temp_vals_abort)
-        details += f"Базовая дистанция прерванного взлёта (табл.6.25): {base:.1f} м\n"
 
-    # проверка на отсутствие данных (9999)
+    # если нет данных (9999)
     if base > 9000:
-        return base, details + "\n\nДля указанных параметров нет данных в таблицах."
+        return None
 
     wind_factor = get_factor_from_table(mass, wind, wind_vals, wind_table, mass_vals_corr)
     slope_factor = get_factor_from_table(mass, slope, slope_vals, slope_table, mass_vals_corr)
-    details += f"Поправочный коэффициент на ветер: {wind_factor:.3f}\n"
-    details += f"Поправочный коэффициент на уклон: {slope_factor:.3f}\n"
 
     result = base * wind_factor * slope_factor
 
     if calc_type == 'abort':
         v1_factor = get_factor_from_table(mass, v1, v1_vals, v1_table, mass_vals_corr)
-        details += f"Поправочный коэффициент на V1/Vn.on: {v1_factor:.3f}\n"
         result *= v1_factor
 
-    details += f"\nИтоговая дистанция (до округления): {result:.1f} м"
-    return result, details
+    return result
 
-# ========== ЭКРАНЫ ПРИЛОЖЕНИЯ ==========
-class CalcTypeScreen(Screen):
+class MainMenuScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
-        layout.add_widget(Label(text='Выберите тип расчёта:', size_hint_y=0.2, font_size=sp(20)))
-        btn_norm = Button(text='Нормальный взлёт', size_hint_y=0.15, font_size=sp(16))
-        btn_cont = Button(text='Продолженный взлёт', size_hint_y=0.15, font_size=sp(16))
-        btn_abort = Button(text='Прерванный взлёт', size_hint_y=0.15, font_size=sp(16))
-        btn_back = Button(text='Назад в меню', size_hint_y=0.1, font_size=sp(14))
-
-        btn_norm.bind(on_press=lambda x: self.goto_input('norm'))
-        btn_cont.bind(on_press=lambda x: self.goto_input('cont'))
-        btn_abort.bind(on_press=lambda x: self.goto_input('abort'))
-        btn_back.bind(on_press=lambda x: setattr(self.manager, 'current', 'menu'))
-
-        layout.add_widget(btn_norm)
-        layout.add_widget(btn_cont)
-        layout.add_widget(btn_abort)
-        layout.add_widget(btn_back)
+        layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+        layout.add_widget(Label(text='Главное меню', font_size=sp(24), size_hint_y=0.2))
+        btn_takeoff = Button(text='Взлётные характеристики', size_hint_y=0.2, font_size=sp(18))
+        btn_exit = Button(text='Выход', size_hint_y=0.2, font_size=sp(18))
+        btn_takeoff.bind(on_press=lambda x: setattr(self.manager, 'current', 'input'))
+        btn_exit.bind(on_press=lambda x: App.get_running_app().stop())
+        layout.add_widget(btn_takeoff)
+        layout.add_widget(btn_exit)
         self.add_widget(layout)
-
-    def goto_input(self, calc_type):
-        self.manager.get_screen('input').set_calc_type(calc_type)
-        self.manager.current = 'input'
 
 class InputScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.calc_type = 'norm'
         self.inputs = {}
 
-        main_layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
+        main_layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
+
+        grid = GridLayout(cols=2, size_hint_y=None, spacing=dp(5))
+        grid.bind(minimum_height=grid.setter('height'))
 
         fields = [
             ('mass', 'Масса (200-390 т):'),
@@ -647,45 +622,33 @@ class InputScreen(Screen):
             ('alt', 'Высота аэродрома (0-2500 м):'),
             ('wind', 'Ветер (-15...+15 м/с):'),
             ('slope', 'Уклон ВПП (-2.0...+0.0%):'),
+            ('v1', 'V1/Vn.on (0.7-1.0):'),
         ]
-        grid = GridLayout(cols=2, size_hint_y=None, spacing=dp(5))
-        grid.bind(minimum_height=grid.setter('height'))
         for key, label in fields:
             grid.add_widget(Label(text=label, halign='right', size_hint_x=0.4, font_size=sp(14)))
-            ti = TextInput(multiline=False, input_filter='float', size_hint_x=0.6, font_size=sp(14))
+            ti = TextInput(
+                text='1.0' if key == 'v1' else '',
+                multiline=False,
+                input_filter='float',
+                size_hint_x=0.6,
+                font_size=sp(14)
+            )
             self.inputs[key] = ti
             grid.add_widget(ti)
 
-        self.v1_label = Label(text='V1/Vn.on (0.7-1.0):', halign='right', size_hint_x=0.4, font_size=sp(14))
-        self.v1_input = TextInput(text='1.0', multiline=False, input_filter='float', size_hint_x=0.6, font_size=sp(14))
-        grid.add_widget(self.v1_label)
-        grid.add_widget(self.v1_input)
-        self.inputs['v1'] = self.v1_input
-
         main_layout.add_widget(grid)
 
-        btn_layout = BoxLayout(size_hint_y=0.1, spacing=dp(10))
+        btn_layout = BoxLayout(size_hint_y=0.2, spacing=dp(10))
         btn_calc = Button(text='Рассчитать', font_size=sp(16))
         btn_back = Button(text='Назад', font_size=sp(16))
         btn_layout.add_widget(btn_calc)
         btn_layout.add_widget(btn_back)
+        main_layout.add_widget(btn_layout)
 
         btn_calc.bind(on_press=self.calculate)
         btn_back.bind(on_press=self.go_back)
 
-        main_layout.add_widget(btn_layout)
         self.add_widget(main_layout)
-
-    def set_calc_type(self, calc_type):
-        self.calc_type = calc_type
-        if calc_type == 'abort':
-            self.v1_label.opacity = 1
-            self.v1_input.opacity = 1
-            self.v1_input.disabled = False
-        else:
-            self.v1_label.opacity = 0
-            self.v1_input.opacity = 0
-            self.v1_input.disabled = True
 
     def calculate(self, instance):
         try:
@@ -694,14 +657,17 @@ class InputScreen(Screen):
             alt = float(self.inputs['alt'].text)
             wind = float(self.inputs['wind'].text)
             slope = float(self.inputs['slope'].text)
-            v1 = float(self.inputs['v1'].text) if self.calc_type == 'abort' else 1.0
+            v1 = float(self.inputs['v1'].text)
         except ValueError:
             self.show_popup('Ошибка', 'Введите все числовые значения')
             return
 
-        # грубая проверка диапазонов
+        # Проверка диапазонов
         if mass < 200 or mass > 390:
             self.show_popup('Ошибка', 'Масса должна быть от 200 до 390 т')
+            return
+        if temp < -60 or temp > 40:
+            self.show_popup('Ошибка', 'Температура должна быть от -60 до +40°C')
             return
         if alt < 0 or alt > 2500:
             self.show_popup('Ошибка', 'Высота должна быть от 0 до 2500 м')
@@ -712,40 +678,46 @@ class InputScreen(Screen):
         if slope < -2.0 or slope > 0.0:
             self.show_popup('Ошибка', 'Уклон должен быть от -2.0 до 0.0 %')
             return
+        if v1 < 0.7 or v1 > 1.0:
+            self.show_popup('Ошибка', 'V1/Vn.on должен быть от 0.7 до 1.0')
+            return
 
-        result, details = calculate_takeoff(mass, temp, alt, wind, slope, v1, self.calc_type)
-        meters_rounded = round_up_50_meters(result)
-        feet_rounded = round_up_100_feet(meters_rounded)
-        msg = details + f"\n\nОкруглённый результат:\n{meters_rounded:.0f} м\n{feet_rounded:.0f} футов"
-        self.show_popup('Результат', msg, size=(0.9, 0.8))
+        # Расчёт всех трёх режимов
+        norm_res = calculate_takeoff(mass, temp, alt, wind, slope, v1, 'norm')
+        cont_res = calculate_takeoff(mass, temp, alt, wind, slope, v1, 'cont')
+        abort_res = calculate_takeoff(mass, temp, alt, wind, slope, v1, 'abort')
+
+        def fmt_result(val):
+            if val is None:
+                return "Нет данных"
+            r50 = round_up_50_meters(val)
+            rft = round_up_100_feet(r50)
+            return f"{val:.1f} м → {r50:.0f} м / {rft:.0f} фут"
+
+        msg = (
+            f"[ НОРМАЛЬНЫЙ ВЗЛЁТ ]\n{fmt_result(norm_res)}\n\n"
+            f"[ ПРОДОЛЖЕННЫЙ ВЗЛЁТ ]\n{fmt_result(cont_res)}\n\n"
+            f"[ ПРЕРВАННЫЙ ВЗЛЁТ ]\n{fmt_result(abort_res)}"
+        )
+
+        self.show_popup('Результаты расчёта', msg, size=(0.9, 0.7))
 
     def go_back(self, instance):
-        self.manager.current = 'type'
+        self.manager.current = 'menu'
 
     def show_popup(self, title, text, size=(0.8, 0.5)):
-        popup = Popup(title=title, content=Label(text=text, font_size=sp(14)), size_hint=size)
+        content = BoxLayout(orientation='vertical', padding=dp(10))
+        content.add_widget(Label(text=text, font_size=sp(14), halign='left', valign='top'))
+        btn_close = Button(text='Закрыть', size_hint_y=0.2, font_size=sp(14))
+        content.add_widget(btn_close)
+        popup = Popup(title=title, content=content, size_hint=size, auto_dismiss=False)
+        btn_close.bind(on_press=popup.dismiss)
         popup.open()
-
-class MainMenuScreen(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
-        layout.add_widget(Label(text='Главное меню', font_size=sp(24), bold=True, size_hint_y=0.2))
-        btn_takeoff = Button(text='Взлётные характеристики', size_hint_y=0.15, font_size=sp(18))
-        btn_exit = Button(text='Выход', size_hint_y=0.1, font_size=sp(14))
-
-        btn_takeoff.bind(on_press=lambda x: setattr(self.manager, 'current', 'type'))
-        btn_exit.bind(on_press=lambda x: App.get_running_app().stop())
-
-        layout.add_widget(btn_takeoff)
-        layout.add_widget(btn_exit)
-        self.add_widget(layout)
 
 class TakeoffApp(App):
     def build(self):
         sm = ScreenManager()
         sm.add_widget(MainMenuScreen(name='menu'))
-        sm.add_widget(CalcTypeScreen(name='type'))
         sm.add_widget(InputScreen(name='input'))
         return sm
 
