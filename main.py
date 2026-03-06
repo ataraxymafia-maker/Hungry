@@ -668,6 +668,46 @@ class InputScreen(Screen):
         except ValueError:
             self.show_popup('Ошибка', 'Введите все числовые значения')
             return
+            # === ОТЛАДКА для 500м, +20°C, 250т ===
+if abs(alt - 500) < 1 and abs(temp - 20) < 1 and abs(mass - 250) < 1:
+    # Индексы массы
+    mass_idx = None
+    for i, m in enumerate(mass_vals):
+        if abs(m - mass) < 1:
+            mass_idx = i
+            break
+    # Индексы температуры
+    temp_idx = None
+    for j, t in enumerate(temp_vals_norm_cont):
+        if abs(t - temp) < 1:
+            temp_idx = j
+            break
+    # Таблица для высоты 500 (нормальный взлёт)
+    if 500 in norm_tables:
+        grid = norm_tables[500]
+        if mass_idx is not None and temp_idx is not None:
+            val = grid[mass_idx][temp_idx]
+            msg = f"Индекс массы: {mass_idx} ({mass_vals[mass_idx]})\n"
+            msg += f"Индекс температуры: {temp_idx} ({temp_vals_norm_cont[temp_idx]})\n"
+            msg += f"Значение в таблице: {val} м\n"
+            # Соседи
+            if mass_idx > 0:
+                msg += f"Слева по массе ({(mass_vals[mass_idx-1])}): {grid[mass_idx-1][temp_idx]}\n"
+            if mass_idx < len(mass_vals)-1:
+                msg += f"Справа по массе ({(mass_vals[mass_idx+1])}): {grid[mass_idx+1][temp_idx]}\n"
+            if temp_idx > 0:
+                msg += f"Снизу по темп. ({temp_vals_norm_cont[temp_idx-1]}): {grid[mass_idx][temp_idx-1]}\n"
+            if temp_idx < len(temp_vals_norm_cont)-1:
+                msg += f"Сверху по темп. ({temp_vals_norm_cont[temp_idx+1]}): {grid[mass_idx][temp_idx+1]}\n"
+            self.show_popup('Отладка', msg)
+            return
+        else:
+            self.show_popup('Ошибка', 'Не удалось определить индексы')
+            return
+    else:
+        self.show_popup('Ошибка', 'Таблица для высоты 500 не найдена')
+        return
+# === КОНЕЦ ОТЛАДКИ ===
 
         if mass < 200 or mass > 390:
             self.show_popup('Ошибка', 'Масса должна быть от 200 до 390 т')
