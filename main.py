@@ -24,6 +24,44 @@ def linear_interpolate(x, x0, x1, y0, y1):
     return y0 + (x - x0) * (y1 - y0) / (x1 - x0)
 
 def bilinear_interpolate(x, y, x_vals, y_vals, grid):
+    # Находим индексы для x
+    if x <= x_vals[0]:
+        i1 = i2 = 0
+    elif x >= x_vals[-1]:
+        i1 = i2 = len(x_vals) - 1
+    else:
+        for i in range(len(x_vals) - 1):
+            if x_vals[i] <= x <= x_vals[i + 1]:
+                i1, i2 = i, i + 1
+                break
+    # Для y
+    if y <= y_vals[0]:
+        j1 = j2 = 0
+    elif y >= y_vals[-1]:
+        j1 = j2 = len(y_vals) - 1
+    else:
+        for j in range(len(y_vals) - 1):
+            if y_vals[j] <= y <= y_vals[j + 1]:
+                j1, j2 = j, j + 1
+                break
+
+    if i1 == i2 and j1 == j2:
+        return grid[i1][j1]
+
+    if i1 != i2:
+        y_low = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[i1][j1], grid[i2][j1])
+        y_high = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[i1][j2], grid[i2][j2])
+    else:
+        y_low = grid[i1][j1]
+        y_high = grid[i1][j2]
+
+    if j1 != j2:
+        return linear_interpolate(y, y_vals[j1], y_vals[j2], y_low, y_high)
+    else:
+        return y_low
+
+def safe_bilinear(x, y, x_vals, y_vals, grid):
+    # Находим индексы
     if x <= x_vals[0]:
         i1 = i2 = 0
     elif x >= x_vals[-1]:
@@ -42,6 +80,11 @@ def bilinear_interpolate(x, y, x_vals, y_vals, grid):
             if y_vals[j] <= y <= y_vals[j + 1]:
                 j1, j2 = j, j + 1
                 break
+
+    # Проверяем угловые значения на отсутствие данных (9999)
+    corners = [grid[i1][j1], grid[i2][j1], grid[i1][j2], grid[i2][j2]]
+    if any(v == 9999 for v in corners):
+        return None
 
     if i1 == i2 and j1 == j2:
         return grid[i1][j1]
@@ -506,8 +549,11 @@ def get_base_length(mass, temp, alt, table_dict, temp_vals):
     grid_low = table_dict[alt_low]
     grid_high = table_dict[alt_high]
 
-    val_low = bilinear_interpolate(mass, temp, mass_vals, temp_vals, grid_low)
-    val_high = bilinear_interpolate(mass, temp, mass_vals, temp_vals, grid_high)
+    val_low = safe_bilinear(mass, temp, mass_vals, temp_vals, grid_low)
+    val_high = safe_bilinear(mass, temp, mass_vals, temp_vals, grid_high)
+
+    if val_low is None or val_high is None:
+        return None
 
     if alt_low == alt_high:
         return val_low
@@ -575,7 +621,7 @@ def calculate_takeoff(mass, temp, alt, wind, slope, v1, calc_type):
     else:
         base = get_base_length(mass, temp, alt, abort_tables, temp_vals_abort)
 
-    if base > 9000:
+    if base is None:
         return None
 
     wind_factor = get_factor_from_table(mass, wind, wind_vals, wind_table, mass_vals_corr)
@@ -668,46 +714,6 @@ class InputScreen(Screen):
         except ValueError:
             self.show_popup('Ошибка', 'Введите все числовые значения')
             return
-            # === ОТЛАДКА для 500м, +20°C, 250т ===
-if abs(alt - 500) < 1 and abs(temp - 20) < 1 and abs(mass - 250) < 1:
-    # Индексы массы
-    mass_idx = None
-    for i, m in enumerate(mass_vals):
-        if abs(m - mass) < 1:
-            mass_idx = i
-            break
-    # Индексы температуры
-    temp_idx = None
-    for j, t in enumerate(temp_vals_norm_cont):
-        if abs(t - temp) < 1:
-            temp_idx = j
-            break
-    # Таблица для высоты 500 (нормальный взлёт)
-    if 500 in norm_tables:
-        grid = norm_tables[500]
-        if mass_idx is not None and temp_idx is not None:
-            val = grid[mass_idx][temp_idx]
-            msg = f"Индекс массы: {mass_idx} ({mass_vals[mass_idx]})\n"
-            msg += f"Индекс температуры: {temp_idx} ({temp_vals_norm_cont[temp_idx]})\n"
-            msg += f"Значение в таблице: {val} м\n"
-            # Соседи
-            if mass_idx > 0:
-                msg += f"Слева по массе ({(mass_vals[mass_idx-1])}): {grid[mass_idx-1][temp_idx]}\n"
-            if mass_idx < len(mass_vals)-1:
-                msg += f"Справа по массе ({(mass_vals[mass_idx+1])}): {grid[mass_idx+1][temp_idx]}\n"
-            if temp_idx > 0:
-                msg += f"Снизу по темп. ({temp_vals_norm_cont[temp_idx-1]}): {grid[mass_idx][temp_idx-1]}\n"
-            if temp_idx < len(temp_vals_norm_cont)-1:
-                msg += f"Сверху по темп. ({temp_vals_norm_cont[temp_idx+1]}): {grid[mass_idx][temp_idx+1]}\n"
-            self.show_popup('Отладка', msg)
-            return
-        else:
-            self.show_popup('Ошибка', 'Не удалось определить индексы')
-            return
-    else:
-        self.show_popup('Ошибка', 'Таблица для высоты 500 не найдена')
-        return
-# === КОНЕЦ ОТЛАДКИ ===
 
         if mass < 200 or mass > 390:
             self.show_popup('Ошибка', 'Масса должна быть от 200 до 390 т')
