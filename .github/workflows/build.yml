@@ -9,9 +9,27 @@ jobs:
       image: kivy/buildozer:latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up ANDROID_HOME and accept licenses
+        run: |
+          export ANDROID_HOME=/opt/android/sdk
+          mkdir -p $ANDROID_HOME/licenses
+          # Принимаем все необходимые лицензии
+          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-sdk-license
+          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $ANDROID_HOME/licenses/android-sdk-license
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> $ANDROID_HOME/licenses/android-sdk-license
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
+          echo "504667f4c0de7af1a06de9f4b1727b84351f2910" >> $ANDROID_HOME/licenses/android-sdk-preview-license
+          echo "601085b94cd77f0b54ff86406957099ebe79c4d6" > $ANDROID_HOME/licenses/android-googletv-license
+          echo "33b6a2b64607f11b759f320ef9dff4ae5c47d97a" > $ANDROID_HOME/licenses/android-sdk-arm-dbt-license
+          # Проверяем, что файлы созданы
+          ls -la $ANDROID_HOME/licenses
+          cat $ANDROID_HOME/licenses/android-sdk-license
+
       - name: Build with Buildozer
         run: |
           yes | buildozer android debug
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
