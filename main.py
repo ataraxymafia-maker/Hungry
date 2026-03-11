@@ -724,20 +724,20 @@ class InputScreen(Screen):
 
         main.add_widget(grid)
 
-        btn_layout = BoxLayout(size_hint_y=None, height=dp(70), spacing=dp(20))
-        btn_calc = Button(text='Рассчитать', font_size=sp(20))
-        btn_back = Button(text='Назад', font_size=sp(20))
-        btn_layout.add_widget(btn_calc)
-        btn_layout.add_widget(btn_back)
-        main.add_widget(btn_layout)
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(70), spacing=dp(20))
+    btn_calc = Button(text='Рассчитать', font_size=sp(20))
+    btn_back = Button(text='Назад', font_size=sp(20))
+    btn_layout.add_widget(btn_calc)
+    btn_layout.add_widget(btn_back)
+    main.add_widget(btn_layout)
 
-        btn_calc.bind(on_press=self.calculate)
-        btn_back.bind(on_press=lambda x: setattr(self.manager, 'current', 'menu'))
+    btn_calc.bind(on_press=self.calculate)
+    btn_back.bind(on_press=lambda x: setattr(self.manager, 'current', 'menu'))
 
-        root.add_widget(main)
-        self.add_widget(root)
+    root.add_widget(main)
+    self.add_widget(root)
 
-    def calculate(self, instance):
+def calculate(self, instance):
     try:
         mass = float(self.inputs['mass'].text.replace(',', '.'))
         temp = float(self.inputs['temp'].text.replace(',', '.'))
@@ -749,6 +749,17 @@ class InputScreen(Screen):
         self.show_popup('Ошибка', 'Введите все числовые значения')
         return
 
+    # Проверка диапазонов (можно добавить позже)
+    self.show_popup('Отладка', f'Введено: mass={mass}, temp={temp}, alt={alt}, wind={wind}, slope={slope}, v1={v1}')⁴
+        mass = float(self.inputs['mass'].text.replace(',', '.'))
+        temp = float(self.inputs['temp'].text.replace(',', '.'))
+        alt = float(self.inputs['alt'].text.replace(',', '.'))
+        wind = float(self.inputs['wind'].text.replace(',', '.'))
+        slope = float(self.inputs['slope'].text.replace(',', '.'))
+        v1 = float(self.inputs['v1'].text.replace(',', '.'))
+    except ValueError:
+        self.show_popup('Ошибка', 'Введите все числовые значения')
+        return
     # Проверка диапазонов
     if mass < 200 or mass > 390:
         self.show_popup('Ошибка', 'Масса должна быть от 200 до 390 т')
