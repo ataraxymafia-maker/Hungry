@@ -738,54 +738,62 @@ class InputScreen(Screen):
         self.add_widget(root)
 
     def calculate(self, instance):
-        try:
-            mass = float(self.inputs['mass'].text.replace(',', '.'))
-            temp = float(self.inputs['temp'].text.replace(',', '.'))
-            alt = float(self.inputs['alt'].text.replace(',', '.'))
-            wind = float(self.inputs['wind'].text.replace(',', '.'))
-            slope = float(self.inputs['slope'].text.replace(',', '.'))
-            v1 = float(self.inputs['v1'].text.replace(',', '.'))
-        except ValueError:
-            self.show_popup('Ошибка', 'Введите все числовые значения')
-            return
+    try:
+        mass = float(self.inputs['mass'].text.replace(',', '.'))
+        temp = float(self.inputs['temp'].text.replace(',', '.'))
+        alt = float(self.inputs['alt'].text.replace(',', '.'))
+        wind = float(self.inputs['wind'].text.replace(',', '.'))
+        slope = float(self.inputs['slope'].text.replace(',', '.'))
+        v1 = float(self.inputs['v1'].text.replace(',', '.'))
+    except ValueError:
+        self.show_popup('Ошибка', 'Введите все числовые значения')
+        return
 
-        if mass < 200 or mass > 390:
-            self.show_popup('Ошибка', 'Масса должна быть от 200 до 390 т')
-            return
-        if temp < -60 or temp > 40:
-            self.show_popup('Ошибка', 'Температура должна быть от -60 до +40°C')
-            return
-        if alt < 0 or alt > 2500:
-            self.show_popup('Ошибка', 'Высота должна быть от 0 до 2500 м')
-            return
-        if wind < -15 or wind > 15:
-            self.show_popup('Ошибка', 'Ветер должен быть от -15 до +15 м/с')
-            return
-        if slope < -2.0 or slope > 0.0:
-            self.show_popup('Ошибка', 'Уклон должен быть от -2.0 до 0.0 %')
-            return
-        if v1 < 0.7 or v1 > 1.0:
-            self.show_popup('Ошибка', 'V1/Vn.on должен быть от 0.7 до 1.0')
-            return
+    # Проверка диапазонов
+    if mass < 200 or mass > 390:
+        self.show_popup('Ошибка', 'Масса должна быть от 200 до 390 т')
+        return
+    if temp < -60 or temp > 40:
+        self.show_popup('Ошибка', 'Температура должна быть от -60 до +40°C')
+        return
+    if alt < 0 or alt > 2500:
+        self.show_popup('Ошибка', 'Высота должна быть от 0 до 2500 м')
+        return
+    if wind < -15 or wind > 15:
+        self.show_popup('Ошибка', 'Ветер должен быть от -15 до +15 м/с')
+        return
+    if slope < -2.0 or slope > 0.0:
+        self.show_popup('Ошибка', 'Уклон должен быть от -2.0 до 0.0 %')
+        return
+    if v1 < 0.7 or v1 > 1.0:
+        self.show_popup('Ошибка', 'V1/Vn.on должен быть от 0.7 до 1.0')
+        return
 
+    # Сам расчёт с ловлей исключений
+    try:
         norm_res = calculate_takeoff(mass, temp, alt, wind, slope, v1, 'norm')
         cont_res = calculate_takeoff(mass, temp, alt, wind, slope, v1, 'cont')
         abort_res = calculate_takeoff(mass, temp, alt, wind, slope, v1, 'abort')
+    except Exception as e:
+        import traceback
+        error_msg = f"Ошибка в расчёте:\n{str(e)}\n\n{traceback.format_exc()}"
+        self.show_popup('Критическая ошибка', error_msg)
+        return
 
-        def fmt_result(val):
-            if val is None:
-                return "Нет данных"
-            r50 = round_up_50_meters(val)
-            rft = round_up_100_feet(r50)
-            return f"{val:.1f} м → {r50:.0f} м / {rft:.0f} фут"
+    def fmt_result(val):
+        if val is None:
+            return "Нет данных"
+        r50 = round_up_50_meters(val)
+        rft = round_up_100_feet(r50)
+        return f"{val:.1f} м → {r50:.0f} м / {rft:.0f} фут"
 
-        msg = (
-            f"[ НОРМАЛЬНЫЙ ВЗЛЁТ ]\n{fmt_result(norm_res)}\n\n"
-            f"[ ПРОДОЛЖЕННЫЙ ВЗЛЁТ ]\n{fmt_result(cont_res)}\n\n"
-            f"[ ПРЕРВАННЫЙ ВЗЛЁТ ]\n{fmt_result(abort_res)}"
-        )
+    msg = (
+        f"[ НОРМАЛЬНЫЙ ВЗЛЁТ ]\n{fmt_result(norm_res)}\n\n"
+        f"[ ПРОДОЛЖЕННЫЙ ВЗЛЁТ ]\n{fmt_result(cont_res)}\n\n"
+        f"[ ПРЕРВАННЫЙ ВЗЛЁТ ]\n{fmt_result(abort_res)}"
+    )
 
-        self.show_popup('Результаты расчёта', msg)
+    self.show_popup('Результаты расчёта', msg)
 
     def show_popup(self, title, text):
         content = BoxLayout(orientation='vertical', padding=dp(10))
