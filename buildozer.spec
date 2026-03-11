@@ -1,6 +1,6 @@
 [app]
-title = projekt1
-package.name = projekt1
+title = projek1
+package.name = projek1
 package.domain = org.ataraxymafia
 
 source.dir = .
@@ -13,9 +13,10 @@ osx.python_version = 3
 osx.kivy_version = 2.2.1
 fullscreen = 0
 
-# Указываем стабильную версию build-tools
+# Стабильная версия build-tools и принудительное принятие лицензий
 android.build_tools_version = 34.0.0
 android.sdk_accept_license = True
+android.accept_sdk_license = True
 
 [buildozer]
 log_level = 2
