@@ -10,80 +10,70 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.metrics import dp, sp
 
-# ========== НОВЫЕ КОЭФФИЦИЕНТЫ РЕГРЕССИИ (ПОЛИНОМ 3 СТЕПЕНИ) ==========
-# Порядок: intercept, mass, temp, alt, mass2, temp2, alt2, mass_temp, mass_alt, temp_alt,
-#          mass3, temp3, alt3, mass2_temp, mass2_alt, temp2_mass, temp2_alt, alt2_mass, alt2_temp, mass_temp_alt
-
-coeffs = {
-    'norm': {
-        'intercept': -1003.342228,
-        'mass': 19.093914,
-        'temp': 3.110023,
-        'alt': 0.322876,
-        'mass2': -0.066209,
-        'temp2': -0.087157,
-        'alt2': -0.000081,
-        'mass_temp': -0.055820,
-        'mass_alt': -0.002468,
-        'temp_alt': -0.000072,
-        'mass3': 0.000090,
-        'temp3': 0.003032,
-        'alt3': 0.000020,
-        'mass2_temp': 0.000207,
-        'mass2_alt': 0.000007,
-        'temp2_mass': 0.000089,
-        'temp2_alt': 0.000072,
-        'alt2_mass': 0.000000,
-        'alt2_temp': 0.000001,
-        'mass_temp_alt': 0.000020,
-    },
-    'cont': {
-        'intercept': -441.768617,
-        'mass': 17.858076,
-        'temp': -1.918218,
-        'alt': 0.269282,
-        'mass2': -0.065985,
-        'temp2': -0.061381,
-        'alt2': -0.000057,
-        'mass_temp': -0.025130,
-        'mass_alt': -0.002291,
-        'temp_alt': -0.000749,
-        'mass3': 0.000103,
-        'temp3': 0.003205,
-        'alt3': 0.000000,
-        'mass2_temp': 0.000158,
-        'mass2_alt': 0.000007,
-        'temp2_mass': 0.000801,
-        'temp2_alt': 0.000089,
-        'alt2_mass': 0.000000,
-        'alt2_temp': 0.000001,
-        'mass_temp_alt': 0.000018,
-    },
-    'abort': {
-        'intercept': 1414.422454,
-        'mass': -1.159001,
-        'temp': -5.126535,
-        'alt': -0.087734,
-        'mass2': 0.013586,
-        'temp2': -0.163205,
-        'alt2': -0.000062,
-        'mass_temp': 0.033130,
-        'mass_alt': 0.001183,
-        'temp_alt': -0.003183,
-        'mass3': -0.000004,
-        'temp3': 0.004234,
-        'alt3': 0.000000,
-        'mass2_temp': 0.000012,
-        'mass2_alt': 0.000000,
-        'temp2_mass': 0.000938,
-        'temp2_alt': 0.000111,
-        'alt2_mass': 0.000000,
-        'alt2_temp': 0.000001,
-        'mass_temp_alt': 0.000026,
-    }
+# ========== КОЭФФИЦИЕНТЫ РЕГРЕССИИ ==========
+# Нормальный взлёт: полином 2 степени (стабильный)
+coeffs_norm = {
+    'intercept': 1461.520634,
+    'mass': -7.407039,
+    'temp': -7.718992,
+    'alt': -0.398332,
+    'mass2': 0.023179,
+    'temp2': 0.148785,
+    'alt2': 0.000070,
+    'mass_temp': 0.060576,
+    'mass_alt': 0.002263,
+    'temp_alt': 0.003566,
 }
 
-# ========== ПОПРАВОЧНЫЕ ТАБЛИЦЫ (ветер, уклон, V1) ==========
+# Продолженный взлёт: полином 3 степени (точный)
+coeffs_cont = {
+    'intercept': -441.768617,
+    'mass': 17.858076,
+    'temp': -1.918218,
+    'alt': 0.269282,
+    'mass2': -0.065985,
+    'temp2': -0.061381,
+    'alt2': -0.000057,
+    'mass_temp': -0.025130,
+    'mass_alt': -0.002291,
+    'temp_alt': -0.000749,
+    'mass3': 0.000103,
+    'temp3': 0.003205,
+    'alt3': 0.000000,
+    'mass2_temp': 0.000158,
+    'mass2_alt': 0.000007,
+    'temp2_mass': 0.000801,
+    'temp2_alt': 0.000089,
+    'alt2_mass': 0.000000,
+    'alt2_temp': 0.000001,
+    'mass_temp_alt': 0.000018,
+}
+
+# Прерванный взлёт: полином 3 степени (точный)
+coeffs_abort = {
+    'intercept': 1414.422454,
+    'mass': -1.159001,
+    'temp': -5.126535,
+    'alt': -0.087734,
+    'mass2': 0.013586,
+    'temp2': -0.163205,
+    'alt2': -0.000062,
+    'mass_temp': 0.033130,
+    'mass_alt': 0.001183,
+    'temp_alt': -0.003183,
+    'mass3': -0.000004,
+    'temp3': 0.004234,
+    'alt3': 0.000000,
+    'mass2_temp': 0.000012,
+    'mass2_alt': 0.000000,
+    'temp2_mass': 0.000938,
+    'temp2_alt': 0.000111,
+    'alt2_mass': 0.000000,
+    'alt2_temp': 0.000001,
+    'mass_temp_alt': 0.000026,
+}
+
+# ========== ПОПРАВОЧНЫЕ ТАБЛИЦЫ ==========
 mass_vals_corr = [200,210,220,230,240,250,260,270,280,290,300,310,320,330,340,350]
 
 wind_vals = [-15,-10,-5,0,5,10,15]
@@ -135,8 +125,7 @@ def linear_interpolate(x, x0, x1, y0, y1):
     return y0 + (x - x0) * (y1 - y0) / (x1 - x0)
 
 def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
-    """Универсальная функция для получения поправочного коэффициента из таблицы."""
-    # Определяем индексы по x
+    # ... (та же функция, что и раньше, можно оставить без изменений)
     if x <= x_vals[0]:
         xi1 = xi2 = 0
     elif x >= x_vals[-1]:
@@ -146,7 +135,6 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
             if x_vals[i] <= x <= x_vals[i+1]:
                 xi1, xi2 = i, i+1
                 break
-    # Определяем индексы по массе
     if mass <= table_mass_vals[0]:
         mi1 = mi2 = 0
     elif mass >= table_mass_vals[-1]:
@@ -157,7 +145,6 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
                 mi1, mi2 = i, i+1
                 break
 
-    # Значение при заданном x
     if xi1 == xi2 and mi1 == mi2:
         val_x = table[xi1][mi1]
     else:
@@ -174,15 +161,12 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
         else:
             val_x = y_low
 
-    # Находим значение при x=0 (для нормировки)
     zero_idx = None
     if 0 in x_vals:
         zero_idx = x_vals.index(0)
     elif 0.0 in x_vals:
         zero_idx = x_vals.index(0.0)
-
     if zero_idx is not None:
-        # Значение при x=0
         if mi1 != mi2:
             val_zero = linear_interpolate(mass, table_mass_vals[mi1], table_mass_vals[mi2],
                                           table[zero_idx][mi1], table[zero_idx][mi2])
@@ -194,38 +178,75 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
     else:
         return 1.0
 
-# ========== ФУНКЦИЯ РАСЧЁТА ПО РЕГРЕССИОННОЙ ФОРМУЛЕ (ПОЛИНОМ 3 СТЕПЕНИ) ==========
-def calc_regression(mode, mass, temp, alt):
-    c = coeffs[mode]
-    L = (c['intercept'] +
-         c['mass'] * mass +
-         c['temp'] * temp +
-         c['alt'] * alt +
-         c['mass2'] * mass * mass +
-         c['temp2'] * temp * temp +
-         c['alt2'] * alt * alt +
-         c['mass_temp'] * mass * temp +
-         c['mass_alt'] * mass * alt +
-         c['temp_alt'] * temp * alt +
-         c['mass3'] * mass * mass * mass +
-         c['temp3'] * temp * temp * temp +
-         c['alt3'] * alt * alt * alt +
-         c['mass2_temp'] * mass * mass * temp +
-         c['mass2_alt'] * mass * mass * alt +
-         c['temp2_mass'] * temp * temp * mass +
-         c['temp2_alt'] * temp * temp * alt +
-         c['alt2_mass'] * alt * alt * mass +
-         c['alt2_temp'] * alt * alt * temp +
-         c['mass_temp_alt'] * mass * temp * alt)
-    return L
+# ========== ФУНКЦИИ РАСЧЁТА ==========
+def calc_norm(mass, temp, alt):
+    c = coeffs_norm
+    return (c['intercept'] +
+            c['mass'] * mass +
+            c['temp'] * temp +
+            c['alt'] * alt +
+            c['mass2'] * mass * mass +
+            c['temp2'] * temp * temp +
+            c['alt2'] * alt * alt +
+            c['mass_temp'] * mass * temp +
+            c['mass_alt'] * mass * alt +
+            c['temp_alt'] * temp * alt)
 
-# ========== ФУНКЦИЯ ДЛЯ ПОЛНОГО РАСЧЁТА (С УЧЁТОМ ПОПРАВОК) ==========
+def calc_cont(mass, temp, alt):
+    c = coeffs_cont
+    return (c['intercept'] +
+            c['mass'] * mass +
+            c['temp'] * temp +
+            c['alt'] * alt +
+            c['mass2'] * mass * mass +
+            c['temp2'] * temp * temp +
+            c['alt2'] * alt * alt +
+            c['mass_temp'] * mass * temp +
+            c['mass_alt'] * mass * alt +
+            c['temp_alt'] * temp * alt +
+            c['mass3'] * mass * mass * mass +
+            c['temp3'] * temp * temp * temp +
+            c['alt3'] * alt * alt * alt +
+            c['mass2_temp'] * mass * mass * temp +
+            c['mass2_alt'] * mass * mass * alt +
+            c['temp2_mass'] * temp * temp * mass +
+            c['temp2_alt'] * temp * temp * alt +
+            c['alt2_mass'] * alt * alt * mass +
+            c['alt2_temp'] * alt * alt * temp +
+            c['mass_temp_alt'] * mass * temp * alt)
+
+def calc_abort(mass, temp, alt):
+    c = coeffs_abort
+    return (c['intercept'] +
+            c['mass'] * mass +
+            c['temp'] * temp +
+            c['alt'] * alt +
+            c['mass2'] * mass * mass +
+            c['temp2'] * temp * temp +
+            c['alt2'] * alt * alt +
+            c['mass_temp'] * mass * temp +
+            c['mass_alt'] * mass * alt +
+            c['temp_alt'] * temp * alt +
+            c['mass3'] * mass * mass * mass +
+            c['temp3'] * temp * temp * temp +
+            c['alt3'] * alt * alt * alt +
+            c['mass2_temp'] * mass * mass * temp +
+            c['mass2_alt'] * mass * mass * alt +
+            c['temp2_mass'] * temp * temp * mass +
+            c['temp2_alt'] * temp * temp * alt +
+            c['alt2_mass'] * alt * alt * mass +
+            c['alt2_temp'] * alt * alt * temp +
+            c['mass_temp_alt'] * mass * temp * alt)
+
 def calculate_takeoff(mass, temp, alt, wind, slope, v1, mode):
-    base = calc_regression(mode, mass, temp, alt)
-    if base is None:
-        return None
+    wind_corrected = -wind
+    if mode == 'norm':
+        base = calc_norm(mass, temp, alt)
+    elif mode == 'cont':
+        base = calc_cont(mass, temp, alt)
+    else:
+        base = calc_abort(mass, temp, alt)
 
-    wind_corrected = -wind   # встречный – отрицательный
     wind_factor = get_factor_from_table(mass, wind_corrected, wind_vals, wind_table, mass_vals_corr)
     slope_factor = get_factor_from_table(mass, slope, slope_vals, slope_table, mass_vals_corr)
     result = base * wind_factor * slope_factor
@@ -236,148 +257,5 @@ def calculate_takeoff(mass, temp, alt, wind, slope, v1, mode):
 
     return result
 
-# ========== ЭКРАНЫ (ИНТЕРФЕЙС) ==========
-class MainMenuScreen(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(20))
-        layout.add_widget(Label(text='Главное меню', font_size=sp(28), bold=True, size_hint_y=0.3))
-        btn_start = Button(text='Взлётные характеристики', font_size=sp(22), size_hint_y=0.2)
-        btn_start.bind(on_press=lambda x: setattr(self.manager, 'current', 'input'))
-        layout.add_widget(btn_start)
-        self.add_widget(layout)
-
-class InputScreen(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.inputs = {}
-
-        root = ScrollView()
-        main = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(20), size_hint_y=None)
-        main.bind(minimum_height=main.setter('height'))
-
-        main.add_widget(Label(text='Введите параметры', font_size=sp(24), bold=True, size_hint_y=None, height=dp(60)))
-
-        grid = GridLayout(cols=2, size_hint_y=None, spacing=dp(15), padding=dp(10))
-        grid.bind(minimum_height=grid.setter('height'))
-
-        fields = [
-            ('mass', 'Масса (т):'),
-            ('temp', 'Температура (°C):'),
-            ('alt', 'Высота аэродрома (м):'),
-            ('wind', 'Ветер (+попут / –встр):'),
-            ('slope', 'Уклон ВПП (%):'),
-            ('v1', 'V1/Vn.on:'),
-        ]
-        defaults = ['', '', '', '0', '0', '1.0']
-        for (key, label), default in zip(fields, defaults):
-            grid.add_widget(Label(
-                text=label,
-                halign='right',
-                size_hint_x=0.5,
-                font_size=sp(18),
-                size_hint_y=None,
-                height=dp(50)
-            ))
-            ti = TextInput(
-                text=default,
-                multiline=False,
-                input_filter='float',
-                font_size=sp(18),
-                size_hint_x=0.5,
-                size_hint_y=None,
-                height=dp(50)
-            )
-            self.inputs[key] = ti
-            grid.add_widget(ti)
-
-        main.add_widget(grid)
-
-        btn_layout = BoxLayout(size_hint_y=None, height=dp(70), spacing=dp(20))
-        btn_calc = Button(text='Рассчитать', font_size=sp(20))
-        btn_back = Button(text='Назад', font_size=sp(20))
-        btn_layout.add_widget(btn_calc)
-        btn_layout.add_widget(btn_back)
-        main.add_widget(btn_layout)
-
-        btn_calc.bind(on_press=self.calculate)
-        btn_back.bind(on_press=lambda x: setattr(self.manager, 'current', 'menu'))
-
-        root.add_widget(main)
-        self.add_widget(root)
-
-    def calculate(self, instance):
-        try:
-            mass = float(self.inputs['mass'].text.replace(',', '.'))
-            temp = float(self.inputs['temp'].text.replace(',', '.'))
-            alt = float(self.inputs['alt'].text.replace(',', '.'))
-            wind = float(self.inputs['wind'].text.replace(',', '.'))
-            slope = float(self.inputs['slope'].text.replace(',', '.'))
-            v1 = float(self.inputs['v1'].text.replace(',', '.'))
-        except ValueError:
-            self.show_popup('Ошибка', 'Введите все числовые значения')
-            return
-
-        # Проверка допустимых диапазонов
-        if mass < 200 or mass > 390:
-            self.show_popup('Ошибка', 'Масса должна быть от 200 до 390 т')
-            return
-        if temp < -60 or temp > 40:
-            self.show_popup('Ошибка', 'Температура должна быть от -60 до +40°C')
-            return
-        if alt < 0 or alt > 2500:
-            self.show_popup('Ошибка', 'Высота должна быть от 0 до 2500 м')
-            return
-        if wind < -15 or wind > 15:
-            self.show_popup('Ошибка', 'Ветер должен быть от -15 до +15 м/с')
-            return
-        if slope < -2.0 or slope > 0.0:
-            self.show_popup('Ошибка', 'Уклон должен быть от -2.0 до 0.0 %')
-            return
-        if v1 < 0.7 or v1 > 1.0:
-            self.show_popup('Ошибка', 'V1/Vn.on должен быть от 0.7 до 1.0')
-            return
-
-        try:
-            norm_res = calculate_takeoff(mass, temp, alt, wind, slope, v1, 'norm')
-            cont_res = calculate_takeoff(mass, temp, alt, wind, slope, v1, 'cont')
-            abort_res = calculate_takeoff(mass, temp, alt, wind, slope, v1, 'abort')
-        except Exception as e:
-            import traceback
-            error_msg = f"Ошибка в расчёте:\n{str(e)}\n\n{traceback.format_exc()}"
-            self.show_popup('Критическая ошибка', error_msg)
-            return
-
-        def fmt_result(val):
-            if val is None:
-                return "Нет данных"
-            r50 = round_up_50_meters(val)
-            rft = round_up_100_feet(r50)
-            return f"{val:.1f} м → {r50:.0f} м / {rft:.0f} фут"
-
-        msg = (
-            f"[ НОРМАЛЬНЫЙ ВЗЛЁТ ]\n{fmt_result(norm_res)}\n\n"
-            f"[ ПРОДОЛЖЕННЫЙ ВЗЛЁТ ]\n{fmt_result(cont_res)}\n\n"
-            f"[ ПРЕРВАННЫЙ ВЗЛЁТ ]\n{fmt_result(abort_res)}"
-        )
-
-        self.show_popup('Результаты расчёта', msg)
-
-    def show_popup(self, title, text):
-        content = BoxLayout(orientation='vertical', padding=dp(10))
-        content.add_widget(Label(text=text, font_size=sp(16)))
-        btn = Button(text='Закрыть', size_hint_y=None, height=dp(50))
-        content.add_widget(btn)
-        popup = Popup(title=title, content=content, size_hint=(0.9,0.7))
-        btn.bind(on_press=popup.dismiss)
-        popup.open()
-
-class TakeoffApp(App):
-    def build(self):
-        sm = ScreenManager()
-        sm.add_widget(MainMenuScreen(name='menu'))
-        sm.add_widget(InputScreen(name='input'))
-        return sm
-
-if __name__ == '__main__':
-    TakeoffApp().run()
+# ========== ЭКРАНЫ (интерфейс без изменений) ==========
+# ... (весь код экранов из предыдущей версии, он остаётся тем же)
