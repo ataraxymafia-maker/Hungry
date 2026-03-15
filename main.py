@@ -25,6 +25,7 @@ def linear_interpolate(x, x0, x1, y0, y1):
 
 def bilinear_interpolate(x, y, x_vals, y_vals, grid):
     # x: масса, y: температура
+    # grid[j][i] – j индекс температуры, i индекс массы
     if x <= x_vals[0]:
         i1 = i2 = 0
     elif x >= x_vals[-1]:
@@ -45,14 +46,15 @@ def bilinear_interpolate(x, y, x_vals, y_vals, grid):
                 break
 
     if i1 == i2 and j1 == j2:
-        return grid[i1][j1]
+        return grid[j1][i1]
 
     if i1 != i2:
-        y_low = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[i1][j1], grid[i2][j1])
-        y_high = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[i1][j2], grid[i2][j2])
+        # Интерполяция по массе при фиксированных температурах j1 и j2
+        y_low = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[j1][i1], grid[j1][i2])
+        y_high = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[j2][i1], grid[j2][i2])
     else:
-        y_low = grid[i1][j1]
-        y_high = grid[i1][j2]
+        y_low = grid[j1][i1]
+        y_high = grid[j2][i1]
 
     if j1 != j2:
         return linear_interpolate(y, y_vals[j1], y_vals[j2], y_low, y_high)
@@ -60,7 +62,7 @@ def bilinear_interpolate(x, y, x_vals, y_vals, grid):
         return y_low
 
 def safe_bilinear(x, y, x_vals, y_vals, grid):
-    # Проверка на наличие 9999
+    # x: масса, y: температура
     if x <= x_vals[0]:
         i1 = i2 = 0
     elif x >= x_vals[-1]:
@@ -80,19 +82,20 @@ def safe_bilinear(x, y, x_vals, y_vals, grid):
                 j1, j2 = j, j + 1
                 break
 
-    corners = [grid[i1][j1], grid[i2][j1], grid[i1][j2], grid[i2][j2]]
+    # Проверяем наличие 9999 в углах
+    corners = [grid[j1][i1], grid[j1][i2], grid[j2][i1], grid[j2][i2]]
     if any(v == 9999 for v in corners):
         return None
 
     if i1 == i2 and j1 == j2:
-        return grid[i1][j1]
+        return grid[j1][i1]
 
     if i1 != i2:
-        y_low = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[i1][j1], grid[i2][j1])
-        y_high = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[i1][j2], grid[i2][j2])
+        y_low = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[j1][i1], grid[j1][i2])
+        y_high = linear_interpolate(x, x_vals[i1], x_vals[i2], grid[j2][i1], grid[j2][i2])
     else:
-        y_low = grid[i1][j1]
-        y_high = grid[i1][j2]
+        y_low = grid[j1][i1]
+        y_high = grid[j2][i1]
 
     if j1 != j2:
         return linear_interpolate(y, y_vals[j1], y_vals[j2], y_low, y_high)
@@ -624,7 +627,7 @@ def calculate_takeoff(mass, temp, alt, wind, slope, v1, calc_type):
 
     if calc_type == 'norm':
         table = norm_tables
-        temp_list = temp_full  # ИСПРАВЛЕНО: всегда temp_full
+        temp_list = temp_full  # Всегда temp_full
     elif calc_type == 'cont':
         table = cont_tables
         if alt <= 750:
