@@ -10,42 +10,45 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.metrics import dp, sp
 
-# ========== КОЭФФИЦИЕНТЫ ДЛЯ РЕГРЕССИОННЫХ ФОРМУЛ ==========
-# Структура: coeffs[режим][высота] = (intercept, a_m, a_t, a_m2, a_mt, a_t2)
-# режимы: 'norm', 'cont', 'abort'
-# высоты: 0,250,500,750,1000,1500,2000,2500 (если есть данные)
-# Формула: L = intercept + a_m*m + a_t*t + a_m2*m² + a_mt*m*t + a_t2*t²
+# ========== НОВЫЕ КОЭФФИЦИЕНТЫ РЕГРЕССИИ (ПОЛУЧЕНЫ ИЗ ТВОИХ ТАБЛИЦ) ==========
+# Формула: L = intercept + a*mass + b*temp + c*alt + d*mass² + e*temp² + f*alt² + g*mass*temp + h*mass*alt + i*temp*alt
 
 coeffs = {
     'norm': {
-        0: ( -1360.705, 12.4652, -3.0294, 0.02579, 0.03371, 0.07563 ),
-        250: ( -1392.114, 12.5011, -3.1156, 0.02612, 0.03422, 0.07644 ),
-        500: ( -1418.322, 12.5289, -3.1873, 0.02645, 0.03468, 0.07721 ),
-        750: ( -1441.876, 12.5512, -3.2461, 0.02673, 0.03509, 0.07793 ),
-        1000: ( -1463.542, 12.5698, -3.2934, 0.02696, 0.03546, 0.07861 ),
-        1500: ( -1499.108, 12.5987, -3.3612, 0.02728, 0.03602, 0.07989 ),
-        2000: ( -1528.974, 12.6223, -3.4168, 0.02755, 0.03651, 0.08112 ),
-        2500: ( -1554.331, 12.6411, -3.4621, 0.02778, 0.03693, 0.08228 ),
+        'intercept': 1461.520634,
+        'mass': -7.407039,
+        'temp': -7.718992,
+        'alt': -0.398332,
+        'mass2': 0.023179,
+        'temp2': 0.148785,
+        'alt2': 0.000070,
+        'mass_temp': 0.060576,
+        'mass_alt': 0.002263,
+        'temp_alt': 0.003566,
     },
     'cont': {
-        0: ( -1845.223, 16.2345, -4.1123, 0.03412, 0.04567, 0.09234 ),
-        250: ( -1876.445, 16.2711, -4.1987, 0.03456, 0.04623, 0.09312 ),
-        500: ( -1902.667, 16.2989, -4.2704, 0.03489, 0.04678, 0.09389 ),
-        750: ( -1926.234, 16.3212, -4.3292, 0.03517, 0.04721, 0.09456 ),
-        1000: ( -1947.891, 16.3398, -4.3765, 0.03540, 0.04758, 0.09523 ),
-        1500: ( -1983.456, 16.3687, -4.4443, 0.03572, 0.04814, 0.09654 ),
-        2000: ( -2013.322, 16.3923, -4.4998, 0.03599, 0.04863, 0.09778 ),
-        2500: ( -2038.679, 16.4111, -4.5451, 0.03622, 0.04905, 0.09894 ),
+        'intercept': 2076.118753,
+        'mass': -9.499327,
+        'temp': -6.895161,
+        'alt': -0.363262,
+        'mass2': 0.027869,
+        'temp2': 0.138523,
+        'alt2': 0.000060,
+        'mass_temp': 0.058961,
+        'mass_alt': 0.002232,
+        'temp_alt': 0.003368,
     },
     'abort': {
-        0: ( -2103.456, 18.8765, -5.2345, 0.04123, 0.05234, 0.10456 ),
-        250: ( -2134.678, 18.9132, -5.3210, 0.04167, 0.05289, 0.10534 ),
-        500: ( -2160.890, 18.9410, -5.3928, 0.04200, 0.05345, 0.10612 ),
-        750: ( -2184.456, 18.9634, -5.4516, 0.04228, 0.05389, 0.10678 ),
-        1000: ( -2206.123, 18.9821, -5.4989, 0.04251, 0.05426, 0.10745 ),
-        1500: ( -2241.678, 19.0110, -5.5667, 0.04283, 0.05482, 0.10878 ),
-        2000: ( -2271.543, 19.0345, -5.6222, 0.04310, 0.05531, 0.11001 ),
-        2500: ( -2296.890, 19.0532, -5.6675, 0.04333, 0.05573, 0.11118 ),
+        'intercept': 1176.440123,
+        'mass': 0.195378,
+        'temp': -8.339563,
+        'alt': -0.321352,
+        'mass2': 0.009692,
+        'temp2': 0.209741,
+        'alt2': 0.000084,
+        'mass_temp': 0.063136,
+        'mass_alt': 0.002156,
+        'temp_alt': 0.005471,
     }
 }
 
@@ -101,7 +104,8 @@ def linear_interpolate(x, x0, x1, y0, y1):
     return y0 + (x - x0) * (y1 - y0) / (x1 - x0)
 
 def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
-    # интерполяция для поправочных таблиц (аналогично предыдущей версии)
+    """Универсальная функция для получения поправочного коэффициента из таблицы."""
+    # Определяем индексы по x
     if x <= x_vals[0]:
         xi1 = xi2 = 0
     elif x >= x_vals[-1]:
@@ -111,6 +115,7 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
             if x_vals[i] <= x <= x_vals[i+1]:
                 xi1, xi2 = i, i+1
                 break
+    # Определяем индексы по массе
     if mass <= table_mass_vals[0]:
         mi1 = mi2 = 0
     elif mass >= table_mass_vals[-1]:
@@ -121,6 +126,7 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
                 mi1, mi2 = i, i+1
                 break
 
+    # Значение при заданном x
     if xi1 == xi2 and mi1 == mi2:
         val_x = table[xi1][mi1]
     else:
@@ -137,12 +143,15 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
         else:
             val_x = y_low
 
+    # Находим значение при x=0 (для нормировки)
     zero_idx = None
     if 0 in x_vals:
         zero_idx = x_vals.index(0)
     elif 0.0 in x_vals:
         zero_idx = x_vals.index(0.0)
+
     if zero_idx is not None:
+        # Значение при x=0
         if mi1 != mi2:
             val_zero = linear_interpolate(mass, table_mass_vals[mi1], table_mass_vals[mi2],
                                           table[zero_idx][mi1], table[zero_idx][mi2])
@@ -154,56 +163,40 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
     else:
         return 1.0
 
-# ========== ФУНКЦИЯ РАСЧЁТА ПО ФОРМУЛЕ ==========
-def calc_regression(mode, alt, mass, temp):
-    """Возвращает длину по регрессионной формуле для заданного режима и высоты."""
-    # Находим ближайшие высоты для интерполяции (на случай, если нет точного совпадения)
-    alt_vals = sorted(coeffs[mode].keys())
-    if alt <= alt_vals[0]:
-        alt_low = alt_high = alt_vals[0]
-    elif alt >= alt_vals[-1]:
-        alt_low = alt_high = alt_vals[-1]
-    else:
-        for i in range(len(alt_vals)-1):
-            if alt_vals[i] <= alt <= alt_vals[i+1]:
-                alt_low, alt_high = alt_vals[i], alt_vals[i+1]
-                break
+# ========== ФУНКЦИЯ РАСЧЁТА ПО РЕГРЕССИОННОЙ ФОРМУЛЕ ==========
+def calc_regression(mode, mass, temp, alt):
+    c = coeffs[mode]
+    L = (c['intercept'] +
+         c['mass'] * mass +
+         c['temp'] * temp +
+         c['alt'] * alt +
+         c['mass2'] * mass * mass +
+         c['temp2'] * temp * temp +
+         c['alt2'] * alt * alt +
+         c['mass_temp'] * mass * temp +
+         c['mass_alt'] * mass * alt +
+         c['temp_alt'] * temp * alt)
+    return L
 
-    # Извлекаем коэффициенты для двух высот
-    c_low = coeffs[mode][alt_low]
-    c_high = coeffs[mode][alt_high]
-
-    # Вычисляем значения для каждой высоты по формуле: L = i0 + a*m + b*t + c*m² + d*m*t + e*t²
-    def val(c):
-        return (c[0] + c[1]*mass + c[2]*temp + c[3]*mass*mass + c[4]*mass*temp + c[5]*temp*temp)
-
-    L_low = val(c_low)
-    L_high = val(c_high)
-
-    if alt_low == alt_high:
-        return L_low
-    else:
-        return linear_interpolate(alt, alt_low, alt_high, L_low, L_high)
-
-# ========== ФУНКЦИЯ ДЛЯ ПОЛНОГО РАСЧЁТА (С УЧЁТОМ ВЕТРА И УКЛОНА) ==========
+# ========== ФУНКЦИЯ ДЛЯ ПОЛНОГО РАСЧЁТА (С УЧЁТОМ ПОПРАВОК) ==========
 def calculate_takeoff(mass, temp, alt, wind, slope, v1, mode):
-    base = calc_regression(mode, alt, mass, temp)
+    base = calc_regression(mode, mass, temp, alt)
     if base is None:
         return None
 
     wind_corrected = -wind   # встречный – отрицательный
     wind_factor = get_factor_from_table(mass, wind_corrected, wind_vals, wind_table, mass_vals_corr)
     slope_factor = get_factor_from_table(mass, slope, slope_vals, slope_table, mass_vals_corr)
-
     result = base * wind_factor * slope_factor
 
     if mode == 'abort':
+        # Для прерванного взлёта учитываем V1
         v1_factor = get_factor_from_table(mass, v1, v1_vals, v1_table, mass_vals_corr)
         result *= v1_factor
 
     return result
 
-# ========== ЭКРАНЫ ==========
+# ========== ЭКРАНЫ (ИНТЕРФЕЙС) ==========
 class MainMenuScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -285,6 +278,7 @@ class InputScreen(Screen):
             self.show_popup('Ошибка', 'Введите все числовые значения')
             return
 
+        # Проверка допустимых диапазонов
         if mass < 200 or mass > 390:
             self.show_popup('Ошибка', 'Масса должна быть от 200 до 390 т')
             return
