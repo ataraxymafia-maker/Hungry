@@ -10,45 +10,76 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.metrics import dp, sp
 
-# ========== НОВЫЕ КОЭФФИЦИЕНТЫ РЕГРЕССИИ (ПОЛУЧЕНЫ ИЗ ТВОИХ ТАБЛИЦ) ==========
-# Формула: L = intercept + a*mass + b*temp + c*alt + d*mass² + e*temp² + f*alt² + g*mass*temp + h*mass*alt + i*temp*alt
+# ========== НОВЫЕ КОЭФФИЦИЕНТЫ РЕГРЕССИИ (ПОЛИНОМ 3 СТЕПЕНИ) ==========
+# Порядок: intercept, mass, temp, alt, mass2, temp2, alt2, mass_temp, mass_alt, temp_alt,
+#          mass3, temp3, alt3, mass2_temp, mass2_alt, temp2_mass, temp2_alt, alt2_mass, alt2_temp, mass_temp_alt
 
 coeffs = {
     'norm': {
-        'intercept': 1461.520634,
-        'mass': -7.407039,
-        'temp': -7.718992,
-        'alt': -0.398332,
-        'mass2': 0.023179,
-        'temp2': 0.148785,
-        'alt2': 0.000070,
-        'mass_temp': 0.060576,
-        'mass_alt': 0.002263,
-        'temp_alt': 0.003566,
+        'intercept': -1003.342228,
+        'mass': 19.093914,
+        'temp': 3.110023,
+        'alt': 0.322876,
+        'mass2': -0.066209,
+        'temp2': -0.087157,
+        'alt2': -0.000081,
+        'mass_temp': -0.055820,
+        'mass_alt': -0.002468,
+        'temp_alt': -0.000072,
+        'mass3': 0.000090,
+        'temp3': 0.003032,
+        'alt3': 0.000020,
+        'mass2_temp': 0.000207,
+        'mass2_alt': 0.000007,
+        'temp2_mass': 0.000089,
+        'temp2_alt': 0.000072,
+        'alt2_mass': 0.000000,
+        'alt2_temp': 0.000001,
+        'mass_temp_alt': 0.000020,
     },
     'cont': {
-        'intercept': 2076.118753,
-        'mass': -9.499327,
-        'temp': -6.895161,
-        'alt': -0.363262,
-        'mass2': 0.027869,
-        'temp2': 0.138523,
-        'alt2': 0.000060,
-        'mass_temp': 0.058961,
-        'mass_alt': 0.002232,
-        'temp_alt': 0.003368,
+        'intercept': -441.768617,
+        'mass': 17.858076,
+        'temp': -1.918218,
+        'alt': 0.269282,
+        'mass2': -0.065985,
+        'temp2': -0.061381,
+        'alt2': -0.000057,
+        'mass_temp': -0.025130,
+        'mass_alt': -0.002291,
+        'temp_alt': -0.000749,
+        'mass3': 0.000103,
+        'temp3': 0.003205,
+        'alt3': 0.000000,
+        'mass2_temp': 0.000158,
+        'mass2_alt': 0.000007,
+        'temp2_mass': 0.000801,
+        'temp2_alt': 0.000089,
+        'alt2_mass': 0.000000,
+        'alt2_temp': 0.000001,
+        'mass_temp_alt': 0.000018,
     },
     'abort': {
-        'intercept': 1176.440123,
-        'mass': 0.195378,
-        'temp': -8.339563,
-        'alt': -0.321352,
-        'mass2': 0.009692,
-        'temp2': 0.209741,
-        'alt2': 0.000084,
-        'mass_temp': 0.063136,
-        'mass_alt': 0.002156,
-        'temp_alt': 0.005471,
+        'intercept': 1414.422454,
+        'mass': -1.159001,
+        'temp': -5.126535,
+        'alt': -0.087734,
+        'mass2': 0.013586,
+        'temp2': -0.163205,
+        'alt2': -0.000062,
+        'mass_temp': 0.033130,
+        'mass_alt': 0.001183,
+        'temp_alt': -0.003183,
+        'mass3': -0.000004,
+        'temp3': 0.004234,
+        'alt3': 0.000000,
+        'mass2_temp': 0.000012,
+        'mass2_alt': 0.000000,
+        'temp2_mass': 0.000938,
+        'temp2_alt': 0.000111,
+        'alt2_mass': 0.000000,
+        'alt2_temp': 0.000001,
+        'mass_temp_alt': 0.000026,
     }
 }
 
@@ -163,7 +194,7 @@ def get_factor_from_table(mass, x, x_vals, table, table_mass_vals):
     else:
         return 1.0
 
-# ========== ФУНКЦИЯ РАСЧЁТА ПО РЕГРЕССИОННОЙ ФОРМУЛЕ ==========
+# ========== ФУНКЦИЯ РАСЧЁТА ПО РЕГРЕССИОННОЙ ФОРМУЛЕ (ПОЛИНОМ 3 СТЕПЕНИ) ==========
 def calc_regression(mode, mass, temp, alt):
     c = coeffs[mode]
     L = (c['intercept'] +
@@ -175,7 +206,17 @@ def calc_regression(mode, mass, temp, alt):
          c['alt2'] * alt * alt +
          c['mass_temp'] * mass * temp +
          c['mass_alt'] * mass * alt +
-         c['temp_alt'] * temp * alt)
+         c['temp_alt'] * temp * alt +
+         c['mass3'] * mass * mass * mass +
+         c['temp3'] * temp * temp * temp +
+         c['alt3'] * alt * alt * alt +
+         c['mass2_temp'] * mass * mass * temp +
+         c['mass2_alt'] * mass * mass * alt +
+         c['temp2_mass'] * temp * temp * mass +
+         c['temp2_alt'] * temp * temp * alt +
+         c['alt2_mass'] * alt * alt * mass +
+         c['alt2_temp'] * alt * alt * temp +
+         c['mass_temp_alt'] * mass * temp * alt)
     return L
 
 # ========== ФУНКЦИЯ ДЛЯ ПОЛНОГО РАСЧЁТА (С УЧЁТОМ ПОПРАВОК) ==========
@@ -190,7 +231,6 @@ def calculate_takeoff(mass, temp, alt, wind, slope, v1, mode):
     result = base * wind_factor * slope_factor
 
     if mode == 'abort':
-        # Для прерванного взлёта учитываем V1
         v1_factor = get_factor_from_table(mass, v1, v1_vals, v1_table, mass_vals_corr)
         result *= v1_factor
 
